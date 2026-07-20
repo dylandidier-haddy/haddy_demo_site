@@ -1,0 +1,61 @@
+{
+  "exhibits": {
+    "rockwork": {
+      "title": "Rock Work",
+      "subtitle": "Placeholder slice — rebuild from the real rock-work .gcode",
+      "tracks": [
+        {
+          "name": "twisted_vase",
+          "file": "twisted_vase.tpath",
+          "kind": "gcode",
+          "points": 15300,
+          "layers": 180,
+          "bbox": [
+            72.0,
+            73.05,
+            0.3,
+            128.0,
+            126.95,
+            54.0
+          ]
+        }
+      ]
+    },
+    "vase": {
+      "title": "Twisted Hex Vase",
+      "subtitle": "PLA, 0.3 mm layers, spiral vase mode",
+      "tracks": [
+        {
+          "name": "twisted_vase",
+          "file": "twisted_vase.tpath",
+          "kind": "gcode",
+          "points": 15300,
+          "layers": 180,
+          "bbox": [
+            72.0,
+            73.05,
+            0.3,
+            128.0,
+            126.95,
+            54.0
+          ]
+        },
+        {
+          "name": "helix_arm",
+          "file": "helix_arm.tpath",
+          "kind": "robot/krl",
+          "points": 675,
+          "layers": 28,
+          "bbox": [
+            -177.75,
+            -176.62,
+            20.0,
+            180.0,
+            178.88,
+            400.0
+          ]
+        }
+      ]
+    }
+  }
+}
