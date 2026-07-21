@@ -2,21 +2,21 @@
   "exhibits": {
     "rockwork": {
       "title": "Rock Work",
-      "subtitle": "Placeholder slice — rebuild from the real rock-work .gcode",
+      "subtitle": "Ai Build robotic print \u00b7 496 mm tall \u00b7 6 mm nozzle",
       "tracks": [
         {
-          "name": "twisted_vase",
-          "file": "twisted_vase.tpath",
-          "kind": "gcode",
-          "points": 15300,
-          "layers": 180,
+          "name": "1xRockChip.Toolpath",
+          "file": "1xRockChip.Toolpath.tpath",
+          "kind": "aibuild",
+          "points": 61885,
+          "layers": 97,
           "bbox": [
-            72.0,
-            73.05,
-            0.3,
-            128.0,
-            126.95,
-            54.0
+            1220.141,
+            540.175,
+            5.0,
+            1617.396,
+            1658.21,
+            495.857
           ]
         }
       ]

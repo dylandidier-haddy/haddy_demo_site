@@ -1,31 +1,36 @@
-# Toolpath Exhibit
+# Toolpath Demos
 
-Tap an NFC sticker on a physical Haddy piece and a clean, branded page opens in
-your phone's browser — the story of how the piece was made, in time-lapse, with
-the exact machine toolpath scrubbable layer by layer and the source files to
-download. No app install.
+Tap the RFID tag on a Haddy print and your phone opens a private, interactive
+demo of that exact piece — a 3D slice/toolpath you can orbit and scrub through,
+layer by layer. A shared access code (kept in a Cloudflare environment variable)
+gates the demos; once you're in, you can move straight to the next one.
 
 ```
-NFC tag ──► https://haddy.life/rock-work/        (index.html — the showcase page)
-                         │
-                         ├── index.html      Haddy-branded showcase: hero, time-lapse
-                         │                    videos, files, and the embedded viewer
-                         ├── viewer.html      the three.js toolpath viewer (embedded + standalone)
-                         ├── viewer-core.js   parsing + scrub maths, testable
-                         ├── vendor/          three.js r184, self-hosted
-                         ├── media/           time-lapse .mp4s + poster images
-                         ├── files/           downloadable .3dm / .stp / .gcode
-                         └── data/*.tpath.gz  precompiled toolpaths
+scan RFID ──► https://demos.haddy.life/?p=rockwork
+                     │
+                     ▼
+             [ password gate ]  enter the shared code, e.g. "haddy"
+                     │
+                     ▼
+             the demo: 3D slice viewer for that print   ──►   "Next demo →"
 ```
 
-Everything is static files. No server, no build step, no framework.
+The access code is a light, **client-side** gate — an `ACCESS_CODE` constant near
+the bottom of `web/index.html`. It keeps casual eyes out and is instant to iterate
+on; it is *not* real security, since the code ships in the page. Unlock is
+remembered per browser session, so "Next demo" and refreshes don't re-prompt.
 
-The showcase page (`web/index.html`) is the front door — it's what the tag opens.
-It embeds the toolpath viewer (`web/viewer.html`) as its "technology" section, so
-one page carries the whole narrative. The viewer still runs standalone at
-`viewer.html?p=<id>` if you want just the 3D view. Drop your real assets into
-`web/media/` and `web/files/` (each has a README naming the exact files) and the
-page wires them up with no code changes.
+```
+web/                    a plain static site — serve it from anywhere
+  index.html      the demo — 3D slice/toolpath viewer, access gate + Haddy chrome
+  viewer-core.js  parsing + scrub maths, unit-tested in Node
+  vendor/         three.js r184, self-hosted
+  data/           built .tpath demos + manifest.json (one entry per print)
+start.command           double-click (macOS) to serve locally + open the browser
+```
+
+Each print is one entry in `web/data/manifest.json`; the RFID URL selects it with
+`?p=<id>`. Add a print → add a manifest entry → write a tag pointing at it.
 
 ---
 
@@ -136,6 +141,11 @@ increases.
 | ABB RAPID | `.mod` / `.prg` | `MoveL`, `MoveJ`, `MoveAbsJ` |
 | Universal Robots | `.script` | `movel`, `movej`, `movep` |
 
+**Ai Build large-format prints** are auto-detected and handled directly — the
+Sinumerik-style export with `N` line-numbers, modal `G0`/`G1`, and incremental
+`E=IC(...)` extrusion (what Haddy's slicer writes). Just point the tool at the
+`.gcode`; no flags needed.
+
 The parser looks for process on/off signals (`ExtrudeOn`, `WeldOn`, `ArcStart`,
 `set_digital_out(n, True)`, …) to distinguish depositing moves from dry ones. If
 your program signals the tool differently, add the pattern to `TOOL_ON_RE` in
@@ -187,40 +197,42 @@ required. It also gives you a poster frame for the exhibit label.
 
 ### Step 4 — Run it locally
 
+Double-click `start.command` (macOS) — it serves `web/` over HTTP and opens your
+browser. Or do it by hand:
+
 ```bash
 cd web && python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000` for the showcase page, or
-`http://localhost:8000/viewer.html?p=rockwork` for just the 3D viewer. It must be
-served over HTTP, not opened as a `file://` URL — ES modules and `fetch` both
-require an origin.
-
-To test a raw G-code file in the viewer without converting:
-`viewer.html?src=../samples/twisted_vase.gcode`.
+Open `http://localhost:8000/?p=rockwork` and type the access code (`haddy`). It
+**must** be served over HTTP — double-clicking `index.html` in Finder opens it as
+a `file://` URL, and browsers block ES modules and `fetch` there, so the 3D view
+never loads. To skip straight to a raw G-code file without converting:
+`?src=../samples/twisted_vase.gcode`.
 
 ### Step 5 — Deploy
 
-**GitHub Pages.** Push the `web/` directory as your Pages root (or set Pages to
-serve from `/docs` and rename). The included `.nojekyll` matters — without it
-GitHub's Jekyll pass ignores some files.
+It's a plain static site — host `web/` anywhere: Cloudflare Pages, GitHub Pages,
+Netlify, Vercel, an S3 bucket. No build step, no serverless functions.
 
-```bash
-git subtree push --prefix web origin gh-pages
-```
+- Point the host's output/root directory at `web/` (or push `web/` as the site
+  root). On GitHub Pages the included `.nojekyll` matters.
+- Change the shared code by editing `ACCESS_CODE` near the bottom of
+  `web/index.html`.
 
-**Vercel / Netlify.** Point the project at `web/` as the output directory with
-no build command. `vercel.json` is included and sets long cache headers on
-`data/` plus the right content type for `.tpath`.
+You get HTTPS on a stable domain — point something like `demos.haddy.life` at it;
+that's the URL the tag opens.
 
-Either way you get HTTPS on a stable domain, which is what the tag needs.
+> Want a real server-side gate (code checked against an environment variable, not
+> shipped in the page)? That's a small Cloudflare Pages Function — just ask.
 
 ### Step 6 — Write the tag
 
 Full detail in [NFC-SETUP.md](NFC-SETUP.md). In brief: write an NDEF URI record
-containing the piece's showcase URL — e.g. `https://haddy.life/rock-work/` — to an
-NTAG213 sticker using the NFC Tools app, test it on a phone you didn't write it
-with, then lock it read-only.
+containing the print's demo URL — e.g. `https://demos.haddy.life/?p=rockwork` — to
+an NTAG213 sticker using the NFC Tools app, test it on a phone you didn't write
+it with, then lock it read-only. The URL lands on the access screen first; the
+visitor enters the shared code once and can then move between demos.
 
 ---
 
@@ -240,18 +252,22 @@ samples/
   infill_test.gcode     straight-run-heavy file, exercises --simplify
 
 web/
-  index.html            the Haddy showcase page (hero, videos, files, embedded viewer)
-  viewer.html           the toolpath viewer: scene, UI, playback (embedded + standalone)
+  index.html            the demo — 3D slice/toolpath viewer, access gate + chrome
   viewer-core.js        format reader, G-code fallback, scrub maths (no WebGL)
   vendor/               three.js r184, MIT
-  media/                time-lapse .mp4s + poster images (see media/README.md)
-  files/                downloadable source files (see files/README.md)
-  data/                 built .tpath files + manifest.json
+  data/                 built .tpath files + manifest.json (one entry per print)
+
+start.command           double-click (macOS) to serve web/ locally + open browser
 ```
 
-The split between `viewer.html` and `viewer-core.js` exists so the logic that
+The split between `index.html` and `viewer-core.js` exists so the logic that
 can be wrong in subtle ways — binary parsing, layer lookup, draw ranges — runs
 under test in Node, while the part that needs a GPU stays thin.
+
+The access gate is deliberately light: `ACCESS_CODE` in `index.html`, checked in
+the browser, remembered in `sessionStorage`. It keeps casual passers-by out; it
+is not real security (view-source reveals the code). Swap it for a server-side
+check when that matters — see Step 5.
 
 ## 4. Customizing
 

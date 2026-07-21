@@ -1,9 +1,0 @@
-# Cloudflare Pages headers.
-# Vendored three.js never changes; cache it hard. The built .tpath demo files
-# sit behind the password gate, so keep them out of shared caches (private).
-
-/vendor/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/data/*
-  Cache-Control: private, max-age=86400

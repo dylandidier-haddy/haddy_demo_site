@@ -157,9 +157,105 @@
   @media (prefers-reduced-motion: reduce) {
     #ring { animation: none; }
   }
+
+  /* ---- lightweight access gate (client-side; type the code to view) ---- */
+  #gate {
+    position: fixed; inset: 0; z-index: 30; display: grid; place-items: center;
+    background: var(--bg); padding: 24px;
+  }
+  #gate.hidden { display: none; }
+  #gateForm { width: 100%; max-width: 320px; }
+  .gate-brand { display: flex; align-items: center; gap: 9px; color: var(--fg); margin-bottom: 34px; }
+  .gate-brand svg { width: 24px; height: 24px; }
+  .gate-brand b { font-weight: 600; letter-spacing: .28em; font-size: 14px; padding-left: 1px; }
+  .gate-eyebrow { font-size: .66rem; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); margin: 0 0 20px; }
+  #gate label { display: block; font-size: .66rem; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin-bottom: 9px; }
+  #gateInput {
+    width: 100%; font: inherit; font-size: 16px; color: var(--fg);
+    background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 15px; outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  #gateInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(243,118,59,.20); }
+  #gate button {
+    margin-top: 14px; width: 100%; font: inherit; font-weight: 600; font-size: 13px;
+    letter-spacing: .1em; text-transform: uppercase; cursor: pointer; color: #04141a;
+    background: var(--accent); border: none; border-radius: 999px; padding: 15px;
+  }
+  #gate button:active { transform: scale(.98); }
+  .gate-err { color: #fca5a5; font-size: 13px; min-height: 1.2em; margin: 14px 0 0; }
 </style>
 </head>
 <body>
+
+<div id="gate">
+  <form id="gateForm" autocomplete="off">
+    <div class="gate-brand" aria-hidden="true">
+      <svg viewBox="0 0 28 28">
+        <rect x="2.6" y="2.6" width="22.8" height="22.8" rx="5" fill="none" stroke="#F3763B" stroke-width="2.1"/>
+        <line x1="9.6" y1="14" x2="18.4" y2="14" stroke="#F3763B" stroke-width="2.1" stroke-linecap="round"/>
+      </svg>
+      <b>HADDY</b>
+    </div>
+    <p class="gate-eyebrow">Private demo</p>
+    <label for="gateInput">Access code</label>
+    <input id="gateInput" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button id="gateBtn" type="button">View demo →</button>
+    <p class="gate-err" id="gateErr" role="alert"></p>
+  </form>
+</div>
+
+<!--
+  Access gate — a plain (non-module) script so it runs INSTANTLY and everywhere,
+  including before the heavy three.js module loads. The 3D demo itself still
+  needs an HTTP server (ES modules + fetch don't work from a file:// page), so
+  if opened as a file we say so instead of failing silently.
+-->
+<script>
+(function () {
+  var CODE = 'haddy';   // ← the shared access code
+
+  function boot() {
+    var g = document.getElementById('gate');
+    if (g) g.remove();
+    if (window.__startDemo) window.__startDemo();   // module already loaded
+    // else the module boots itself on load via the sessionStorage flag below
+  }
+
+  function start() {
+    var form  = document.getElementById('gateForm');
+    var input = document.getElementById('gateInput');
+    var btn   = document.getElementById('gateBtn');
+    var err   = document.getElementById('gateErr');
+
+    // A file:// page can't run the 3D viewer at all — don't pretend it can.
+    if (location.protocol === 'file:') {
+      err.textContent = 'Open this through the local server (double-click start.command) — not the file itself.';
+      input.disabled = true; btn.disabled = true; btn.style.opacity = '.5';
+      return;
+    }
+
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem('haddyUnlocked') === '1'; } catch (e) {}
+    if (unlocked) { boot(); return; }
+
+    function tryUnlock() {
+      if (input.value.trim().toLowerCase() === CODE) {
+        try { sessionStorage.setItem('haddyUnlocked', '1'); } catch (e) {}
+        boot();
+      } else {
+        err.textContent = 'Incorrect code. Try again.';
+        input.value = ''; input.focus();
+      }
+    }
+    btn.addEventListener('click', tryUnlock);
+    form.addEventListener('submit', function (e) { e.preventDefault(); tryUnlock(); }); // Enter key
+    input.focus();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
 
 <div id="stage"></div>
 <div id="vignette"></div>
@@ -167,8 +263,8 @@
 <div id="head">
   <div id="brand" aria-hidden="true">
     <svg viewBox="0 0 28 28">
-      <rect x="1.4" y="1.4" width="25.2" height="25.2" rx="4" fill="none" stroke="currentColor" stroke-width="1.7"/>
-      <path d="M7.5 20.5 L14 8 L20.5 20.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <rect x="2.6" y="2.6" width="22.8" height="22.8" rx="5" fill="none" stroke="#F3763B" stroke-width="2.1"/>
+      <line x1="9.6" y1="14" x2="18.4" y2="14" stroke="#F3763B" stroke-width="2.1" stroke-linecap="round"/>
     </svg>
     <b>HADDY</b>
   </div>
@@ -183,8 +279,6 @@
     <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
   </button>
 </div>
-
-<button id="nextDemo" class="hidden" type="button">Next demo <span class="arr">→</span></button>
 
 <div id="tracks" role="tablist"></div>
 
@@ -232,7 +326,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   parseTpath, parseGcodeText, buildTrackBuffers, drawRangesFor
-} from './viewer-core.js';
+} from './viewer-core.js?v=2';
 
 // ===========================================================================
 // 1. Fetch with progress, transparent gzip
@@ -325,6 +419,302 @@ controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 const root = new THREE.Group();
 scene.add(root);
 
+// Lights — the toolpath is unlit lines, but the machine model uses standard
+// materials that need lighting to read as solid metal/plastic on the black bg.
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+scene.add(new THREE.HemisphereLight(0xdce8f6, 0x1a1f27, 1.5));
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+keyLight.position.set(0.7, 1.2, 0.8);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xbcd0e8, 0.7);
+fillLight.position.set(-0.8, 0.5, -0.7);
+scene.add(fillLight);
+
+// ===========================================================================
+// 2b. Machine — a representative model of the rail-mounted robot printer, sized
+// to the object. The arm's nozzle tracks the current print point (2-link inverse
+// kinematics in the X-Z plane; the carriage rides the rail in Y) so it looks
+// like the robot is actually laying down the part.
+// ===========================================================================
+
+const MAT_BED   = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.92, metalness: 0.02 });
+const MAT_HEAT  = new THREE.MeshStandardMaterial({ color: 0xd2d7dd, roughness: 0.5,  metalness: 0.35 });
+const MAT_FRAME = new THREE.MeshStandardMaterial({ color: 0xb8bfc8, roughness: 0.6,  metalness: 0.25 });
+const MAT_SEAM  = new THREE.MeshStandardMaterial({ color: 0x8b929c, roughness: 0.6,  metalness: 0.2  });
+const MAT_RAIL  = new THREE.MeshStandardMaterial({ color: 0xe8ebee, roughness: 0.6,  metalness: 0.2  });
+const MAT_ARM   = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.45, metalness: 0.6  });
+const MAT_ARM2  = new THREE.MeshStandardMaterial({ color: 0x24272e, roughness: 0.5,  metalness: 0.55 });
+const MAT_ARM3  = new THREE.MeshStandardMaterial({ color: 0x565c66, roughness: 0.4,  metalness: 0.65 });
+const MAT_WHT   = new THREE.MeshStandardMaterial({ color: 0xeef1f5, roughness: 0.5,  metalness: 0.15 });
+const MAT_TIP   = new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.35, metalness: 0.8  });
+
+const _UP = new THREE.Vector3(0, 1, 0);
+const _dir = new THREE.Vector3();
+
+/** Position/scale a unit-height (along local Y) cylinder mesh to span A→B. */
+function spanCyl(mesh, ax, ay, az, bx, by, bz) {
+  mesh.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+  _dir.set(bx - ax, by - ay, bz - az);
+  const len = _dir.length() || 1e-6;
+  mesh.scale.set(1, len, 1);
+  mesh.quaternion.setFromUnitVectors(_UP, _dir.multiplyScalar(1 / len));
+}
+
+class Machine {
+  constructor(bbox) {
+    // 1. Find the exact center of the printed object from its G-code bounding box
+    const [objMinX, objMinY, objMinZ, objMaxX, objMaxY, objMaxZ] = bbox;
+    const objCX = (objMinX + objMaxX) / 2;
+    const objCY = (objMinY + objMaxY) / 2;
+    
+    // 2. Define the physical scale of the robot and bed (minimum envelope size in mm)
+    // Adjust these numbers to match the Haddy printer's true physical scale!
+    const baseScaleX = 1000; // Base width scale 
+    const baseScaleY = 1600; // Base length scale
+    const baseScaleZ = 1200; // Base height scale
+    
+    // 3. Ensure the machine envelope is always at least the size of the real-world scale
+    const envelopeX = Math.max(baseScaleX, objMaxX - objMinX);
+    const envelopeY = Math.max(baseScaleY, objMaxY - objMinY);
+    const envelopeZ = Math.max(baseScaleZ, objMaxZ - objMinZ);
+    
+    // 4. Force the machine bounds to center perfectly around the object
+    const minX = objCX - (envelopeX / 2);
+    const maxX = objCX + (envelopeX / 2);
+    const minY = objCY - (envelopeY / 2);
+    const maxY = objCY + (envelopeY / 2);
+    const maxZ = objMinZ + envelopeZ;
+    const minZ = objMinZ;
+    const floor = objMinZ;
+
+    const extX = maxX - minX, extY = maxY - minY, extZ = maxZ - minZ;
+    const cx = objCX, cy = objCY;
+    this.group = new THREE.Group();
+    this.cyRef = cy;
+
+    const U = Math.max(extX, extZ);
+    
+    // DON'T FORGET THIS HELPER FUNCTION!
+    const add = (geo, mat, x, y, z, parent) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      (parent || this.group).add(m);
+      return m;
+    };
+  
+    // ===== beds: heated (object side) + normal (perpendicular split) =====
+    const stepH = 0.05 * extZ, slabT = 0.045 * extZ;
+    const Zg = floor - 0.40 * extZ; 
+    
+    const bx0 = minX - 0.22 * extX, bx1 = maxX + 0.15 * extX;
+    const bedW = bx1 - bx0, bedCX = (bx0 + bx1) / 2;
+    const seamT = 0.006 * U, frameT = 0.02 * U;
+
+    const bedLegs = (y0, y1, top) => {
+      const insetX = 0.09 * bedW, insetY = 0.09 * (y1 - y0), legR = 0.026 * U;
+      const legTop = top - slabT, legH = legTop - Zg;
+      
+      for (const X of [bx0 + insetX, bx1 - insetX])
+        for (const Y of [y0 + insetY, (y0 + y1) / 2, y1 - insetY])
+          add(new THREE.BoxGeometry(legR * 2, legR * 2, legH), MAT_FRAME, X, Y, legTop - legH / 2);
+          
+      for (const Y of [y0 + insetY, y1 - insetY])
+        add(new THREE.BoxGeometry(bedW * 0.86, legR * 1.4, legR * 1.4), MAT_FRAME, bedCX, Y, Zg + legH * 0.2);
+    };
+
+    // heated bed
+    const hy0 = minY - 0.2 * extY, hy1 = maxY + 0.2 * extY;
+    const heatedD = hy1 - hy0, heatedCY = (hy0 + hy1) / 2;
+    
+    add(new THREE.BoxGeometry(bedW, heatedD, slabT), MAT_HEAT, bedCX, heatedCY, floor - slabT / 2);
+    add(new THREE.BoxGeometry(bedW + 2 * frameT, heatedD + 2 * frameT, slabT * 0.55), MAT_FRAME, bedCX, heatedCY, floor - slabT - slabT * 0.15);
+    for (let i = 1; i < 4; i++) add(new THREE.BoxGeometry(bedW * 0.95, seamT, seamT * 2.5), MAT_SEAM, bedCX, hy0 + heatedD * i / 4, floor + seamT);
+    for (let i = 1; i < 3; i++) add(new THREE.BoxGeometry(seamT, heatedD * 0.95, seamT * 2.5), MAT_SEAM, bx0 + bedW * i / 3, heatedCY, floor + seamT);
+    bedLegs(hy0, hy1, floor);
+
+    // normal bed 
+    const gap = 0.02 * extY;
+    const ny0 = hy1 + gap;                  
+    const ny1 = ny0 + 0.8 * extY;           
+    const normD = ny1 - ny0, normCY = (ny0 + ny1) / 2, normTop = floor - stepH;
+    
+    add(new THREE.BoxGeometry(bedW, normD, slabT), MAT_BED, bedCX, normCY, normTop - slabT / 2);
+    add(new THREE.BoxGeometry(bedW + 2 * frameT, normD + 2 * frameT, slabT * 0.55), MAT_FRAME, bedCX, normCY, normTop - slabT - slabT * 0.15);
+    for (let i = 1; i < 4; i++) add(new THREE.BoxGeometry(bedW * 0.95, seamT, seamT * 2.5), MAT_SEAM, bedCX, ny0 + normD * i / 4, normTop + seamT);
+    for (let i = 1; i < 3; i++) add(new THREE.BoxGeometry(seamT, normD * 0.95, seamT * 2.5), MAT_SEAM, bx0 + bedW * i / 3, normCY, normTop + seamT);
+    bedLegs(ny0, ny1, normTop);
+
+    // ===== linear rail =====
+    const railX = maxX + 1.2 * extX;
+    const railY0 = hy0 - 0.2 * extY, railY1 = ny1 + 0.2 * extY;
+    const railLen = railY1 - railY0, railMidY = (railY0 + railY1) / 2;
+    
+    const gauge = 0.42 * extX, beamR = 0.022 * U, railZ = floor + 0.02 * extZ;
+    for (const s of [-1, 1]) add(new THREE.BoxGeometry(beamR * 2.2, railLen, beamR * 3), MAT_RAIL, railX + s * gauge / 2, railMidY, railZ);
+    const nRungs = Math.max(10, Math.round(railLen / (0.4 * extX)));
+    for (let i = 0; i <= nRungs; i++) {
+      const yy = railY0 + railLen * i / nRungs;
+      add(new THREE.BoxGeometry(gauge, beamR * 1.5, beamR * 1.6), MAT_RAIL, railX, yy, railZ);
+      if (i % 2 === 0) {
+        const legTop = railZ - beamR, legH = legTop - Zg;
+        for (const s of [-1, 1]) add(new THREE.BoxGeometry(beamR * 1.8, beamR * 1.8, legH), MAT_RAIL, railX + s * gauge / 2, yy, legTop - legH / 2);
+      }
+    }
+
+    // ===== arm =====
+    MAT_ARM.color.setHex(0x606672);    // Medium dark grey
+    MAT_ARM2.color.setHex(0x40454f);   // Darker joints
+    const MAT_MOTOR = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7, metalness: 0.8 }); // Black motors
+
+    const headLen = 0.55 * extZ;   
+    
+    // UPDATE: Lowered Turret Column Height
+    const colH = 0.35 * U; 
+    const shoulderZ = railZ + 0.09 * extZ + colH;             
+    
+    // Recalculated reach so the lowered arm can still stretch over tall prints
+    const maxReach = Math.hypot(railX - minX, maxZ - floor + headLen * 1.5);
+    this.L1 = maxReach * 0.45; // Lengthened base link to compensate for lower start height
+    this.L2 = maxReach * 0.80; 
+    const armR = 0.035 * maxReach; // Skinnier arm                  
+
+    this.railX = railX; this.shoulderZ = shoulderZ;
+    this.armR = armR; this.headLen = headLen;
+    this.railY0 = railY0 + 0.1 * railLen; this.railY1 = railY1 - 0.1 * railLen;
+
+    // 1. Carriage
+    const carriage = new THREE.Group();
+    this.carriage = carriage;
+    this.group.add(carriage);
+
+    add(new THREE.BoxGeometry(gauge * 1.15, gauge * 1.2, 0.09 * extZ), MAT_ARM2, railX, cy, railZ + 0.045 * extZ, carriage);
+    (add(new THREE.CylinderGeometry(armR * 1.2, armR * 1.2, gauge * 1.4, 20), MAT_MOTOR, railX, cy, railZ + 0.045 * extZ, carriage)).rotation.x = Math.PI / 2; // Rail motor
+
+    // 2. Turret
+    this.turret = new THREE.Group();
+    this.turret.position.set(railX, cy, railZ + 0.09 * extZ);
+    carriage.add(this.turret);
+
+    // Turret gear base with teeth
+    const ring = add(new THREE.CylinderGeometry(armR * 2.8, armR * 3.0, armR * 0.6, 32), MAT_ARM2, 0, 0, armR * 0.3, this.turret);
+    ring.rotation.x = Math.PI / 2;
+    for(let i=0; i<18; i++) {
+      const a = (i/18) * Math.PI * 2;
+      const tooth = add(new THREE.BoxGeometry(armR * 0.8, armR * 0.6, armR * 0.6), MAT_ARM2, Math.cos(a)*armR*2.9, Math.sin(a)*armR*2.9, armR * 0.3, this.turret);
+      tooth.rotation.z = a;
+    }
+
+    add(new THREE.BoxGeometry(armR * 2.4, armR * 2.0, colH), MAT_ARM, 0, 0, colH / 2, this.turret);
+
+    // Shoulder & Motors
+    add(new THREE.CylinderGeometry(armR * 2.2, armR * 2.2, armR * 4.0, 24), MAT_ARM2, 0, 0, colH, this.turret);
+    add(new THREE.BoxGeometry(armR * 4.0, armR * 2.2, armR * 4.0), MAT_ARM, -armR * 1.8, 0, colH, this.turret); // Heavy counterweight
+    (add(new THREE.CylinderGeometry(armR * 1.6, armR * 1.6, armR * 5.0, 20), MAT_MOTOR, 0, 0, colH, this.turret)).rotation.x = Math.PI / 2; // Main shoulder servo
+
+    // 3. Moving links
+    this.baseArm = add(new THREE.CylinderGeometry(armR * 1.5, armR * 1.8, 1, 24), MAT_ARM, 0, 0, 0);
+    this.elbowJ = add(new THREE.CylinderGeometry(armR * 1.6, armR * 1.6, armR * 3.2, 24), MAT_ARM2, 0, 0, 0);
+    
+    // Detailed Dual Lift Pistons
+    this.pistonL = add(new THREE.CylinderGeometry(armR * 0.7, armR * 0.7, 1, 16), MAT_ARM2, 0, 0, 0);
+    this.pistonR = add(new THREE.CylinderGeometry(armR * 0.7, armR * 0.7, 1, 16), MAT_ARM2, 0, 0, 0);
+
+    this.mainArm = add(new THREE.CylinderGeometry(armR * 1.2, armR * 1.5, 1, 24), MAT_ARM, 0, 0, 0);
+    this.strut = add(new THREE.CylinderGeometry(armR * 0.4, armR * 0.4, 1, 16), MAT_ARM3, 0, 0, 0);
+    this.wristJ = add(new THREE.SphereGeometry(armR * 1.2, 18, 14), MAT_ARM2, 0, 0, 0);
+
+    // 4. Detailed White Print Head
+    const head = new THREE.Group(); this.head = head; this.group.add(head);
+    const rH = 0.085 * (this.L2 * 0.65); 
+
+    (add(new THREE.CylinderGeometry(rH * 0.75, rH * 0.3, headLen * 0.16, 16), MAT_TIP, 0, 0, headLen * 0.08, head)).rotation.x = Math.PI / 2;    // nozzle
+    (add(new THREE.CylinderGeometry(rH * 1.12, rH * 1.12, headLen * 0.06, 22), MAT_ARM3, 0, 0, headLen * 0.24, head)).rotation.x = Math.PI / 2;    // collar
+    for (let i = 0; i < 5; i++) add(new THREE.BoxGeometry(rH * 0.95, rH * 1.5, headLen * 0.02), MAT_ARM2, 0, 0, headLen * 0.35 + (i * headLen * 0.06), head); // heat sink
+    add(new THREE.BoxGeometry(rH * 0.8, rH * 1.4, headLen * 2.55), MAT_WHT, 0, 0, headLen * 1.4, head); // 3x taller skinny body
+    add(new THREE.BoxGeometry(rH * 0.7, rH * 0.2, rH * 0.7), MAT_ARM3, 0, -rH * 0.8, headLen * 0.6, head); // fan block
+    (add(new THREE.CylinderGeometry(rH * 0.3, rH * 0.3, rH * 0.22, 12), MAT_ARM2, 0, -rH * 0.8, headLen * 0.6, head)).rotation.x = Math.PI / 2; // fan hub
+    
+    // Image-Accurate Pellet Hopper Assembly
+    const bracket = add(new THREE.BoxGeometry(rH * 0.4, rH * 0.4, headLen * 0.8), MAT_WHT, rH * 1.2, 0, headLen * 2.2, head);
+    bracket.rotation.y = Math.PI / 4; // Angled mount
+    (add(new THREE.CylinderGeometry(rH * 1.6, rH * 1.6, headLen * 0.7, 24), MAT_WHT, rH * 1.8, 0, headLen * 2.7, head)).rotation.x = Math.PI / 2; // Hopper body
+    (add(new THREE.CylinderGeometry(rH * 1.6, rH * 0.4, headLen * 0.3, 24), MAT_WHT, rH * 1.8, 0, headLen * 2.2, head)).rotation.x = Math.PI / 2; // Hopper cone funnel
+    (add(new THREE.CylinderGeometry(rH * 1.7, rH * 1.7, headLen * 0.1, 24), MAT_ARM3, rH * 1.8, 0, headLen * 3.1, head)).rotation.x = Math.PI / 2; // Hopper cap lid
+
+    add(new THREE.BoxGeometry(rH * 0.8, rH * 1.0, rH * 1.2), MAT_ARM3, rH * 0.8, 0, headLen * 1.0, head); // gear housing
+
+    this.update(cx, cy, maxZ);
+  }
+
+  update(tx, ty, tz) {
+    const wx = tx, wy = ty, wz = tz + this.headLen;
+    const sx = this.railX, sz = this.shoulderZ;
+
+    let cyc = this.cyRef + (wy - this.cyRef) * 0.6;
+    cyc = Math.min(this.railY1, Math.max(this.railY0, cyc));
+    this.carriage.position.y = cyc - this.cyRef;
+
+    const dx = wx - sx;
+    const dy = wy - cyc;
+    const dist_xy = Math.hypot(dx, dy);
+
+    const yaw = Math.atan2(dy, dx);
+    this.turret.rotation.z = yaw; 
+
+    const delta_r = dist_xy;
+    const delta_z = wz - sz;
+    const d = Math.hypot(delta_r, delta_z) || 1e-6;
+    const L1 = this.L1, L2 = this.L2;
+
+    let ej_r, ej_z, end_r = delta_r, end_z = wz;
+
+    if (d >= L1 + L2) {
+      const a = Math.atan2(delta_z, delta_r);
+      ej_r = L1 * Math.cos(a);
+      ej_z = sz + L1 * Math.sin(a);
+      end_r = (L1 + L2) * Math.cos(a);
+      end_z = sz + (L1 + L2) * Math.sin(a);
+    } else {
+      let c = (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d);
+      c = Math.max(-1, Math.min(1, c));
+      const a = Math.atan2(delta_z, delta_r);
+      const th1 = a + Math.acos(c); 
+      ej_r = L1 * Math.cos(th1);
+      ej_z = sz + L1 * Math.sin(th1);
+    }
+
+    const ex = sx + ej_r * Math.cos(yaw);
+    const ey = cyc + ej_r * Math.sin(yaw);
+    const ez = ej_z;
+
+    const rx = sx + end_r * Math.cos(yaw);
+    const ry = cyc + end_r * Math.sin(yaw);
+    const rz = end_z;
+
+    this.head.position.set(wx, wy, tz);
+    this.wristJ.position.set(rx, ry, rz);
+    this.elbowJ.position.set(ex, ey, ez);
+
+    this.elbowJ.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(-Math.sin(yaw), Math.cos(yaw), 0)
+    );
+
+    spanCyl(this.baseArm, sx, cyc, sz, ex, ey, ez);
+    spanCyl(this.mainArm, ex, ey, ez, rx, ry, rz);
+    
+    const upOffset = this.armR * 1.6; 
+    spanCyl(this.strut, ex, ey, ez + upOffset, rx, ry, rz + upOffset);
+
+    const pOffsetX = -Math.sin(yaw) * (this.armR * 1.6);
+    const pOffsetY = Math.cos(yaw) * (this.armR * 1.6);
+    const pOffsetZ = -this.armR * 0.8; 
+
+    spanCyl(this.pistonL, sx + pOffsetX, cyc + pOffsetY, sz + pOffsetZ, ex + pOffsetX, ey + pOffsetY, ez + pOffsetZ);
+    spanCyl(this.pistonR, sx - pOffsetX, cyc - pOffsetY, sz + pOffsetZ, ex - pOffsetX, ey - pOffsetY, ez + pOffsetZ);
+  }
+}
+
 // ===========================================================================
 // 3. Track — one machine program, rendered and scrubbable
 // ===========================================================================
@@ -362,11 +752,10 @@ class Track {
     travGeo.setAttribute('position', new THREE.BufferAttribute(travPos, 3));
 
     this.cold = new THREE.LineSegments(coldGeo, new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.62
+      vertexColors: true, transparent: true, opacity: 0.9, linewidth: 2
     }));
     this.hot = new THREE.LineSegments(hotGeo, new THREE.LineBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0.95,
-      blending: THREE.AdditiveBlending, depthWrite: false
+      color: 0xffffff, transparent: true, opacity: 1.0, depthWrite: false, linewidth: 3
     }));
     this.travel = new THREE.LineSegments(travGeo, new THREE.LineBasicMaterial({
       color: 0x64748b, transparent: true, opacity: 0.28, depthWrite: false
@@ -381,14 +770,10 @@ class Track {
 
     this.group.add(this.cold, this.hot, this.travel, this.head);
 
-    // Ground grid on the object's own floor, sized to it. Positioned in the
-    // group's local space, which is still machine space (X, Y, Z-up).
-    const gridSize = Math.ceil(Math.max(bbox[3]-bbox[0], bbox[4]-bbox[1]) * 1.8 / 10) * 10;
-    const grid = new THREE.GridHelper(gridSize, Math.max(4, gridSize / 10), 0x1e293b, 0x141c26);
-    grid.position.set((bbox[0]+bbox[3])/2, (bbox[1]+bbox[4])/2, bbox[2]);
-    // GridHelper is built in its own XZ plane; tip it into the machine's XY plane.
-    grid.rotation.x = Math.PI / 2;
-    this.group.add(grid);
+    // The rail-mounted robot printer, sized to this object. Its nozzle tracks
+    // the current print point (updated from setProgress).
+    this.machine = new Machine(bbox);
+    this.group.add(this.machine.group);
 
     // Machine data is Z-up, three.js is Y-up. Rotate the whole group once
     // rather than swizzling every vertex: (x, y, z) -> (x, z, -y).
@@ -411,8 +796,10 @@ class Track {
     this.travel.geometry.setDrawRange(r.travel.start, r.travel.count);
 
     const p = this.data.pts;
-    this.head.position.set(p[r.seg * 3], p[r.seg * 3 + 1], p[r.seg * 3 + 2]);
+    const hx = p[r.seg * 3], hy = p[r.seg * 3 + 1], hz = p[r.seg * 3 + 2];
+    this.head.position.set(hx, hy, hz);
     this.head.visible = r.seg > 0;
+    this.machine.update(hx, hy, hz);
 
     return r.layer;
   }
@@ -464,21 +851,23 @@ function hideVeil() { el.veil.classList.add('gone'); }
 
 /** Frame the object and rescale every distance-based setting to its size. */
 function frameCamera(track) {
-  const d = track.span * 1.75;
+  const d = track.span * 2.5;   // zoomed out enough to include the arm + rail
   // The group is rotated -90 deg about X, so machine (x, y, z) lands at
-  // world (x, z, -y). Convert the centre the same way.
-  const target = new THREE.Vector3(track.center.x, track.center.z, -track.center.y);
+  // world (x, z, -y). Convert the centre the same way, raised toward the arm.
+  const target = new THREE.Vector3(track.center.x, track.center.z + track.span * 0.1, -track.center.y);
 
   controls.target.copy(target);
-  camera.position.set(target.x + d * 0.62, target.y + d * 0.5, target.z + d * 0.62);
+  camera.position.set(target.x + d * 0.74, target.y + d * 0.5, target.z + d * 0.74);
   camera.near = Math.max(track.span / 500, 0.01);
-  camera.far = track.span * 40;
+  camera.far = track.span * 80;
   camera.updateProjectionMatrix();
 
   controls.minDistance = track.span * 0.12;
-  controls.maxDistance = track.span * 8;
-  scene.fog.near = d * 0.75;
-  scene.fog.far = d * 2.8;
+  controls.maxDistance = track.span * 16;
+  // Fog only fades the far ends of the rail — keep it well behind the machine so
+  // the white bed and rail don't get darkened.
+  scene.fog.near = d * 1.9;
+  scene.fog.far = d * 10;
 
   controls.update();
 }
@@ -544,8 +933,11 @@ el.btnTravel.addEventListener('click', () => {
 
 controls.addEventListener('start', userTookOver);
 
-// Lock: clear the shared-password session and return to the password screen.
-if (el.btnLock) el.btnLock.addEventListener('click', () => { location.assign('/api/logout'); });
+// Lock: forget the access code for this session and show the gate again.
+if (el.btnLock) el.btnLock.addEventListener('click', () => {
+  sessionStorage.removeItem('haddyUnlocked');
+  location.reload();
+});
 
 /** Show the "Next demo" control and point it at the following exhibit. The auth
     cookie carries across the navigation, so there's no re-login between demos. */
@@ -617,7 +1009,8 @@ async function boot() {
         setVeil(`Loading${label} ${Math.round(pct * 100)}%`);
       });
       setVeil(`Building${label}…`);
-      await new Promise(r => requestAnimationFrame(r));   // let the veil repaint
+      await new Promise(r => setTimeout(r, 30));   // let the veil repaint (setTimeout,
+      // not rAF, so a backgrounded tab during load can't hang on "Building…")
       state.tracks.push(new Track(data));
     }
 
@@ -674,7 +1067,22 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-boot();
+// ===========================================================================
+// 7. Boot trigger. The access gate is a classic <script> above (so it works
+// before this module loads). Expose the boot call for it, and start now if this
+// session was already unlocked — including when the code was entered before this
+// heavy module finished downloading.
+// ===========================================================================
+
+window.__startDemo = function () {
+  const g = document.getElementById('gate');
+  if (g) g.remove();
+  boot();
+};
+
+try {
+  if (sessionStorage.getItem('haddyUnlocked') === '1') window.__startDemo();
+} catch (e) { window.__startDemo(); }
 </script>
 </body>
 </html>

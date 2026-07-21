@@ -304,6 +304,89 @@ def finalize_layers(tp, layer_mode):
 
 
 # --------------------------------------------------------------------------
+# Ai Build / Sinumerik large-format robotic G-code
+# --------------------------------------------------------------------------
+#
+# Output of the "Ai Build" postprocessor (and similar Sinumerik dialects). Two
+# things break the generic G-code parser above:
+#   * every line is prefixed with an N line-number: "N370 X.. Y.. E=IC(..)"
+#   * motion is MODAL -- G0/G1 is stated once, then omitted on the many
+#     coordinate-only lines that follow, so >99% of lines carry no G-word.
+# Extrusion is incremental, written "E=IC(<mm>)". A/B/C are tool orientation and
+# are ignored (we only render the XYZ tip path).
+
+AIB_G_RE   = re.compile(r"\bG0*([0-3])\b")
+AIB_XYZ_RE = re.compile(r"\b([XYZ])\s*=?\s*(-?\d*\.?\d+)", re.IGNORECASE)
+AIB_E_RE   = re.compile(r"\bE\s*=?\s*(?:IC|AC)?\s*\(?\s*(-?\d*\.?\d+)", re.IGNORECASE)
+
+
+def is_aibuild(path):
+    head = Path(path).read_text(errors="ignore")[:4000]
+    return ("Ai Build" in head or "TRAORI" in head
+            or re.search(r"^\s*N\d+\s+G[0-3]\b", head, re.MULTILINE) is not None)
+
+
+def parse_aibuild(path, layer_mode="auto", band=5.0):
+    tp = Toolpath(name=Path(path).stem)
+    x = y = z = None
+    modal_g = None
+    cur_layer_z = None
+    z_layers = layer_mode in ("auto", "z", "comment")
+
+    with open(path, "r", errors="ignore") as fh:
+        for raw in fh:
+            code = raw.split(";", 1)[0]
+            if not code.strip():
+                continue
+
+            gm = AIB_G_RE.search(code)
+            if gm:
+                modal_g = int(gm.group(1))
+
+            coords = {}
+            for ax, v in AIB_XYZ_RE.findall(code):
+                try:
+                    coords[ax.upper()] = float(v)
+                except ValueError:
+                    pass
+
+            if modal_g is None or not coords:
+                continue   # setup / variable / comment line -- no motion
+
+            tx = coords.get("X", x)
+            ty = coords.get("Y", y)
+            tz = coords.get("Z", z)
+            if tx is None or ty is None or tz is None:
+                x, y, z = tx, ty, tz
+                continue
+
+            em = AIB_E_RE.search(code)
+            if modal_g == 0:
+                kind = KIND_TRAVEL
+            elif em is not None:
+                try:
+                    de = float(em.group(1))
+                except ValueError:
+                    de = 0.0
+                kind = KIND_EXTRUDE if de > 1e-9 else KIND_TRAVEL
+            else:
+                kind = KIND_EXTRUDE   # G1/G2/G3 deposition move, no explicit E
+
+            if z_layers and kind == KIND_EXTRUDE and (cur_layer_z is None or tz > cur_layer_z + 1e-6):
+                tp.mark_layer(tz)
+                cur_layer_z = tz
+
+            tp.add(tx, ty, tz, kind)
+            x, y, z = tx, ty, tz
+
+    if layer_mode in ("zband", "segments", "none"):
+        apply_band_layers(tp, layer_mode, band)
+    else:
+        finalize_layers(tp, layer_mode)
+    return tp
+
+
+# --------------------------------------------------------------------------
 # Robot arm program parsing
 # --------------------------------------------------------------------------
 
@@ -619,9 +702,12 @@ def main():
             raise SystemExit(f"error: {src} not found")
 
         raw_size = src_path.stat().st_size
-        dialect = detect_robot_dialect(src_path)
+        dialect = None if is_aibuild(src_path) else detect_robot_dialect(src_path)
 
-        if dialect:
+        if is_aibuild(src_path):
+            tp = parse_aibuild(src_path, layer_mode=args.layer_mode, band=args.band)
+            kind_label = "aibuild"
+        elif dialect:
             lm = args.layer_mode if args.layer_mode != "auto" else "zband"
             tp = parse_robot(src_path, dialect, layer_mode=lm, band=args.band)
             kind_label = f"robot/{dialect}"

@@ -223,10 +223,13 @@ function srgbToLinear(c) {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
+// Saturated, mid-dark stops so the deposited object reads clearly on the white
+// print bed (the old cyan/violet/rose washed out). Cool base → hot top.
 const RAMP = [
-  { t: 0.0, c: [0x22 / 255, 0xd3 / 255, 0xee / 255] },  // cyan
-  { t: 0.5, c: [0xa7 / 255, 0x8b / 255, 0xfa / 255] },  // violet
-  { t: 1.0, c: [0xfb / 255, 0x71 / 255, 0x85 / 255] },  // rose
+  { t: 0.0,  c: [0x0e / 255, 0x74 / 255, 0x90 / 255] },  // deep teal
+  { t: 0.38, c: [0x6d / 255, 0x28 / 255, 0xd9 / 255] },  // violet
+  { t: 0.70, c: [0xe1 / 255, 0x1d / 255, 0x48 / 255] },  // rose-red
+  { t: 1.0,  c: [0xf9 / 255, 0x73 / 255, 0x16 / 255] },  // orange
 ];
 const WORK_RGB = [0x4a / 255, 0xde / 255, 0x80 / 255];  // green
 

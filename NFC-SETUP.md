@@ -53,12 +53,13 @@ thin enough that a single solid layer over the top will bridge cleanly.
 robust and you may want to print the same link as a QR code fallback.
 
 ```
-https://haddy.life/rock-work/
+https://demos.haddy.life/?p=rockwork
 ```
 
-Each piece gets its own showcase page, so one tag points at one piece's URL. (The
-toolpath viewer that page embeds still uses `?p=<id>` against
-`web/data/manifest.json` under the hood — see `viewer.html`.)
+The `?p=` parameter selects which print's demo to show, from
+`web/data/manifest.json`, so one deployment serves every print — one tag per
+print. The URL lands on a shared-access-code screen first; the visitor enters the
+code once and can then move between demos.
 
 Notes on the URL:
 
@@ -86,18 +87,18 @@ A URI record compresses the common prefix into a single byte, which is why
 | `0x03` | `http://` |
 | **`0x04`** | **`https://`** ← use this one |
 
-So `https://haddy.life/rock-work` is stored as `0x04` followed by the ASCII bytes
-of `haddy.life/rock-work`.
+So `https://demos.haddy.life/?p=rockwork` is stored as `0x04` followed by the
+ASCII bytes of `demos.haddy.life/?p=rockwork`.
 
 Wrapped as a complete NDEF message:
 
 ```
 D1                          TNF=0x01 (well-known), MB, ME, SR set
 01                          type length = 1
-15                          payload length = 21
+1D                          payload length = 29
 55                          type = 'U' (URI)
 04                          prefix = https://
-68 61 64 64 79 ...          "haddy.life/rock-work"
+64 65 6D 6F 73 ...          "demos.haddy.life/?p=rockwork"
 ```
 
 Write **one record only**. Multi-record messages work but some readers surface
