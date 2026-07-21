@@ -187,11 +187,75 @@
 </head>
 <body>
 
+<div id="gate">
+  <form id="gateForm" autocomplete="off">
+    <div class="gate-brand" aria-hidden="true">
+      <svg viewBox="0 0 28 28">
+        <rect x="2.6" y="2.6" width="22.8" height="22.8" rx="5" fill="none" stroke="#F3763B" stroke-width="2.1"/>
+        <line x1="9.6" y1="14" x2="18.4" y2="14" stroke="#F3763B" stroke-width="2.1" stroke-linecap="round"/>
+      </svg>
+      <b>HADDY</b>
+    </div>
+    <p class="gate-eyebrow">Private demo</p>
+    <label for="gateInput">Access code</label>
+    <input id="gateInput" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button id="gateBtn" type="button">View demo →</button>
+    <p class="gate-err" id="gateErr" role="alert"></p>
+  </form>
+</div>
+
 <!--
-  Access is gated server-side by the Cloudflare Pages Function in functions/:
-  an unauthenticated request is redirected to /login before this page is ever
-  served, so there is no client-side password gate here.
+  Access gate — a plain (non-module) script so it runs INSTANTLY and everywhere,
+  including before the heavy three.js module loads. The 3D demo itself still
+  needs an HTTP server (ES modules + fetch don't work from a file:// page), so
+  if opened as a file we say so instead of failing silently.
 -->
+<script>
+(function () {
+  var CODE = 'haddy';   // ← the shared access code
+
+  function boot() {
+    var g = document.getElementById('gate');
+    if (g) g.remove();
+    if (window.__startDemo) window.__startDemo();   // module already loaded
+    // else the module boots itself on load via the sessionStorage flag below
+  }
+
+  function start() {
+    var form  = document.getElementById('gateForm');
+    var input = document.getElementById('gateInput');
+    var btn   = document.getElementById('gateBtn');
+    var err   = document.getElementById('gateErr');
+
+    // A file:// page can't run the 3D viewer at all — don't pretend it can.
+    if (location.protocol === 'file:') {
+      err.textContent = 'Open this through the local server (double-click start.command) — not the file itself.';
+      input.disabled = true; btn.disabled = true; btn.style.opacity = '.5';
+      return;
+    }
+
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem('haddyUnlocked') === '1'; } catch (e) {}
+    if (unlocked) { boot(); return; }
+
+    function tryUnlock() {
+      if (input.value.trim().toLowerCase() === CODE) {
+        try { sessionStorage.setItem('haddyUnlocked', '1'); } catch (e) {}
+        boot();
+      } else {
+        err.textContent = 'Incorrect code. Try again.';
+        input.value = ''; input.focus();
+      }
+    }
+    btn.addEventListener('click', tryUnlock);
+    form.addEventListener('submit', function (e) { e.preventDefault(); tryUnlock(); }); // Enter key
+    input.focus();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
 
 <div id="stage"></div>
 <div id="vignette"></div>
@@ -869,8 +933,11 @@ el.btnTravel.addEventListener('click', () => {
 
 controls.addEventListener('start', userTookOver);
 
-// Lock: clear the server session cookie and return to the access screen.
-if (el.btnLock) el.btnLock.addEventListener('click', () => { location.assign('/api/logout'); });
+// Lock: forget the access code for this session and show the gate again.
+if (el.btnLock) el.btnLock.addEventListener('click', () => {
+  sessionStorage.removeItem('haddyUnlocked');
+  location.reload();
+});
 
 /** Show the "Next demo" control and point it at the following exhibit. The auth
     cookie carries across the navigation, so there's no re-login between demos. */
@@ -1001,11 +1068,21 @@ renderer.setAnimationLoop(() => {
 });
 
 // ===========================================================================
-// 7. Boot. Access is enforced server-side (functions/_middleware.js) before this
-// page is served, so we just start the viewer.
+// 7. Boot trigger. The access gate is a classic <script> above (so it works
+// before this module loads). Expose the boot call for it, and start now if this
+// session was already unlocked — including when the code was entered before this
+// heavy module finished downloading.
 // ===========================================================================
 
-boot();
+window.__startDemo = function () {
+  const g = document.getElementById('gate');
+  if (g) g.remove();
+  boot();
+};
+
+try {
+  if (sessionStorage.getItem('haddyUnlocked') === '1') window.__startDemo();
+} catch (e) { window.__startDemo(); }
 </script>
 </body>
 </html>
