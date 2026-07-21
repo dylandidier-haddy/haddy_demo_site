@@ -1,0 +1,11 @@
+# Cloudflare Pages headers.
+
+# Vendored three.js never changes → cache it hard.
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Demo data (manifest + built .tpath files) can change whenever you rebuild a
+# print, so always revalidate. Unchanged files return a cheap 304, not a
+# re-download — you get freshness without the bandwidth cost.
+/data/*
+  Cache-Control: no-cache

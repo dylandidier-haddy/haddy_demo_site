@@ -1,0 +1,9 @@
+# Cloudflare Wrangler local state
+.wrangler/
+
+# Dependencies (none committed; wrangler is run via npx)
+node_modules/
+
+# OS / editor cruft
+.DS_Store
+*.log
